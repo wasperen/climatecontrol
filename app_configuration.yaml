@@ -1,0 +1,31 @@
+cv_smart_controler:
+  module: climatecontrol
+  class: SmartCV
+  boiler: switch.boiler
+  calendar: calendar.hass
+  zones:
+    - name: ellis
+      controls:
+        - climate.attic_heat
+    - name: voorzolder
+      controls:
+        - climate.loft_heat
+    - name: olivier
+      control:
+        - climate.anteroom_heat
+    - name: badkamer
+      controls:
+        - climate.bathroom_heat
+    - name: slaapkamer
+      controls:
+        - climate.bedroom_left_heat
+        - climate.bedroom_right_heat
+    - name: benedenverdieping
+      controls:
+        - climate.livingroom_heat
+    - name: halletje
+      controls:
+        - climate.hall_heat
+    - name: toilet
+      controls:
+        - climate.toilet_heat
