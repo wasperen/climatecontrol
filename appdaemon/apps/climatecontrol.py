@@ -33,7 +33,7 @@ class SmartCV(hass.Hass):
 
 	def _parse(self, calendar_message):
 		controls = self._get_controls(calendar_message)
-		
+
 		set_point = None
 		set_point_match = self.set_point_pattern.match(calendar_message)
 		if set_point_match:
@@ -58,9 +58,9 @@ class SmartCV(hass.Hass):
 			self.log("Could not determine controls or set_point from message '{}'".format(message), level="WARNING")
 			return
 
-        if set_point > 30 or set_point < 10:
-            self.log("Unrealistic set point at {}".format(set_point), level="WARNING")
-            return
+		if set_point > 30 or set_point < 10:
+			self.log("Unrealistic set point at {}".format(set_point), level="WARNING")
+			return
 
 		if new_state["state"] == 'on':
 			self.log("Setting {} to {}".format(controls, set_point), level="INFO")
