@@ -1,4 +1,5 @@
 import re
+import datetime
 import appdaemon.plugins.hass.hassapi as hass
 
 
@@ -15,7 +16,7 @@ class SmartCV(hass.Hass):
 		self._initialize_state()
 
 		self.listen_state(self.calendar_cb, self.calendar, attribute="all")
-		self.run_minutely(self.update_boiler_cb)
+		self.run_minutely(self.update_boiler_cb, datetime.time(0, 0, 0))
 
 	def _initialize_state(self):
 		# TODO we should obtain the current state from the calendar using the hass api
