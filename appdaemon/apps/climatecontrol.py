@@ -77,24 +77,36 @@ class SmartCV(hass.Hass):
 
 	def update_boiler_target_cb(self, entity, attribute, old, new, kwargs):
 		self.log("Got a state change from {}, updating target boiler state now".format(entity), level="INFO")
-		reasons = []
+		reasons = {}
 		for zone in self.zones:
 			for control in zone['controls']:
-				if self.get_state(control) != 'off':
-					current_temperature = self.get_state(control, attribute="current_temperature")
-					if current_temperature is not None:
-						target_temperature = self.get_state(control, attribute="temperature")
-						if target_temperature is not None:
-							if current_temperature < target_temperature:
-								reasons.append(dict(
-									zone=zone["name"],
-									control=control,
-									current_temperature=current_temperature,
-									target_temperature=target_temperature
-								))
+				if self.get_state(control) == 'off':
+					continue
+
+				current_temperature = self.get_state(control, attribute="current_temperature")
+				if current_temperature is None:
+					self.log("Could not determine current temperature from {}".format(control), level="WARNING")
+					continue
+
+				target_temperature = self.get_state(control, attribute="temperature")
+				if target_temperature is None:
+					self.log("Could not determine target temperature for {}".format(control), level="WARNING")
+					continue
+
+				if current_temperature < target_temperature:
+					zone_name = zone["name"]
+					if zone_name not in reasons:
+						reasons[zone_name] = []
+					reasons[zone_name].append(dict(
+						control=control,
+						reason="{}<{}".format(current_temperature, target_temperature)
+					))
+
 		if len(reasons) > 0:
+			self.log("Setting target boiler state to on, reasons: {}".format(reasons), level="INFO")
 			self.set_state(self.boiler_target, state='on', attributes=dict(trigger=entity, reasons=reasons))
 		else:
+			self.log("Setting target boiler state to off", level="INFO")
 			self.set_state(self.boiler_target, state='off', attributes=dict(trigger=entity))
 
 	def update_boiler_cb(self, kwargs):
