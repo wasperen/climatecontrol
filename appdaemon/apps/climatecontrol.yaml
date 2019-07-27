@@ -2,7 +2,7 @@ cv_smart_controler:
   module: climatecontrol
   class: SmartCV
   boiler: switch.boiler
-  calendar: calendar.hass
+  calendar: calendar.hass_calendar
   zones:
     - name: ellis
       controls:
@@ -11,7 +11,7 @@ cv_smart_controler:
       controls:
         - climate.loft_heat
     - name: olivier
-      control:
+      controls:
         - climate.anteroom_heat
     - name: badkamer
       controls:
