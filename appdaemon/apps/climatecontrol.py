@@ -58,6 +58,10 @@ class SmartCV(hass.Hass):
 			self.log("Could not determine controls or set_point from message '{}'".format(message), level="WARNING")
 			return
 
+        if set_point > 30 or set_point < 10:
+            self.log("Unrealistic set point at {}".format(set_point), level="WARNING")
+            return
+
 		if new_state["state"] == 'on':
 			self.log("Setting {} to {}".format(controls, set_point), level="INFO")
 			self.call_service('climate/set_temperature', entity_id=controls, temperature=set_point)
