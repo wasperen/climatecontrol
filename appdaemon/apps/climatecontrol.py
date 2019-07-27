@@ -12,18 +12,21 @@ class SmartCV(hass.Hass):
 		self.boiler = self.args['boiler']
 		self.zones = self.args['zones']
 
-		self.listen_state(self.calendar_cb, self.calendar, attribute="all")
-
 		self._initialize_state()
+
+		self.listen_state(self.calendar_cb, self.calendar, attribute="all")
+		self.run_minutely(self.update_boiler_cb)
 
 	def _initialize_state(self):
 		# TODO we should obtain the current state from the calendar using the hass api
 		# for now we just put everything off
 		self.turn_off(self.boiler)
+		self.boiler_target_state = 'off'
+
 		for zone in self.zones:
 			for control in zone['controls']:
 				self.turn_off(control)
-				self.listen_state(self.update_boiler_cb, control)
+				self.listen_state(self.update_boiler_target_cb, control)
 
 	def _get_controls(self, calendar_message):
 		for zone in self.zones:
@@ -81,17 +84,18 @@ class SmartCV(hass.Hass):
 							return 'on'
 		return 'off'
 
-	def update_boiler_cb(self, entity, attribute, old, new, kwargs):
-		self.log("Got a state change from {}, checking the boiler state now".format(entity), level="INFO")
+	def update_boiler_target_cb(self, entity, attribute, old, new, kwargs):
+		self.log("Got a state change from {}, updating target  boiler state now".format(entity), level="INFO")
+		self.boiler_target_state = self._get_required_boiler_state()
 
-		required_state = self._get_required_boiler_state()
+	def update_boiler_cb(self, kwargs):
 		current_state = self.get_state(self.boiler)
 		if current_state is None:
 			self.log("Could not determine current state of boiler with entity id {}".format(self.boiler), level="WARNING")
 			return
 
-		if current_state != required_state:
-			self.log("Switching boiler from {} to {}".format(current_state, required_state))
+		if current_state != self.boiler_target_state:
+			self.log("Switching boiler from {} to {}".format(current_state, self.boiler_target_state))
 			self.toggle(self.boiler)
 		else:
-			self.log("No need to change the boiler state")
+			self.log("No need to change the boiler state", level="DEBUG")
