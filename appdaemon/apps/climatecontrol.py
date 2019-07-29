@@ -83,7 +83,8 @@ class SmartCV(hass.Hass):
 			return
 
 		try:
-			switch_off_time = parse_date(attributes["end_time"]) - datetime.timedelta(minutes=-1)
+			switch_off_time = parse_date(attributes["end_time"], default_timezone=self.get_now().tzinfo) + \
+				datetime.timedelta(minutes=-1)
 		except ParseError as error:
 			self.log("Failure parsing datetime from calendar event end_time: {}".format(attributes["end_time"]), level="WARNING")
 			self.log("Parse Error: {}".format(error), level="WARNING")
@@ -93,9 +94,14 @@ class SmartCV(hass.Hass):
 		self.call_service('climate/set_temperature', entity_id=controls, temperature=set_point)
 		self.call_service('climate/turn_on', entity_id=controls)
 
-		self.run_at(self.timed_off_cb(), switch_off_time)
+		self.run_at(self.timed_off_cb, switch_off_time, controls=controls)
 
-	def timed_off_cb(self, controls):
+	def timed_off_cb(self, kwargs):
+		if 'controls' not in kwargs:
+			self.log("Did not receive controls to switch off in args {}".format(kwargs), level="WARNING")
+			return
+
+		controls = kwargs["controls"]
 		self.log("Switching off {}".format(controls), level="INFO")
 		self.call_service('climate/turn_off', entity_id=controls)
 
