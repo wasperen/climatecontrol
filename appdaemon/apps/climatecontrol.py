@@ -68,7 +68,7 @@ class SmartCV(hass.Hass):
 
 		# listen to all controls to update boiler target state
 		for control in [c for z in self.zones for c in z['controls']]:
-			self.listen_event(self.update_boiler_target_cb, control)
+			self.listen_event(self.update_boiler_target_cb, control, attribute='all')
 
 		time_zero = datetime.time(0, 0, 0)
 		self.run_every(self.update_schedule_cb, self.get_now(), 10 * 60)
