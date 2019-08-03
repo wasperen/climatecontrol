@@ -166,8 +166,16 @@ class SmartCV(hass.Hass):
 			if event is not None:
 				events[event.event_id] = event
 
-		self.log("Calendar events: {}".format(events))
+		self.log("Calendar events: {}".format(events), level="DEBUG")
 
+		# remove events that are no longer on the calendar
+		for event_id, event in self.schedule.items():
+			if event_id not in events:
+				self.log("Removing {}".format(event))
+				event.remove_from_set_point_map(self.set_point_map)
+				self.schedule.pop(event_id)
+
+		# insert / update events from the calendar
 		for event_id, event in events.items():
 			if event_id in self.schedule:
 				if event.updated != self.schedule[event_id].updated:
@@ -178,8 +186,15 @@ class SmartCV(hass.Hass):
 			self.log("Adding {}".format(event))
 			event.add_to_set_point_map(self.set_point_map)
 
-		self.log("Schedule: {}".format(self.schedule))
-		self.log("Set Point Map: {}".format(self.set_point_map))
+		self.log("Schedule: {}".format(self.schedule), level="DEBUG")
+		self.log("Set Point Map: {}".format(self.set_point_map), level="DEBUG")
+
+		# remove irrelevant minutes from set-point map
+		minute_ts = min(self.set_point_map)
+		now_ts = int(self.get_now().replace(second=0, microsecond=0).timestamp())
+		while minute_ts < now_ts:
+			self.set_point_map.pop(minute_ts)
+			minute_ts += 60
 
 	def update_states_cb(self, kwargs):
 		current_ts = int(self.get_now().replace(second=0, microsecond=0).timestamp())
