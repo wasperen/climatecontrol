@@ -169,11 +169,11 @@ class SmartCV(hass.Hass):
 		self.log("Calendar events: {}".format(events), level="DEBUG")
 
 		# remove events that are no longer on the calendar
-		for event_id, event in self.schedule.items():
-			if event_id not in events:
-				self.log("Removing {}".format(event))
-				event.remove_from_set_point_map(self.set_point_map)
-				self.schedule.pop(event_id)
+		to_remove = [self.schedule[event_id] for event_id in self.schedule if event_id not in events]
+		for to_remove_event in to_remove:
+			self.log("Removing {}".format(to_remove_event))
+			to_remove_event.remove_from_set_point_map(self.set_point_map)
+			self.schedule.pop(to_remove_event.event_id)
 
 		# insert / update events from the calendar
 		for event_id, event in events.items():
