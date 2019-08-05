@@ -160,6 +160,10 @@ class SmartCV(hass.Hass):
 		end = self.get_now() + horizon
 
 		calendar_events = self._get_calendar_events(start, end)
+		if calendar_events is None:
+			self.log("Got no calendar events", level="WARNING")
+			return
+
 		events = {}
 		for calendar_event in calendar_events:
 			event = self.parse_calendar_event(calendar_event)
