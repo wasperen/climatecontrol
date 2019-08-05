@@ -194,11 +194,10 @@ class SmartCV(hass.Hass):
 		self.log("Set Point Map: {}".format(self.set_point_map), level="DEBUG")
 
 		# remove irrelevant minutes from set-point map
-		minute_ts = min(self.set_point_map)
 		now_ts = int(self.get_now().replace(second=0, microsecond=0).timestamp())
-		while minute_ts < now_ts:
+		to_remove = [minute_ts for minute_ts in self.set_point_map if minute_ts < now_ts]
+		for minute_ts in to_remove:
 			self.set_point_map.pop(minute_ts)
-			minute_ts += 60
 
 	def update_states_cb(self, kwargs):
 		current_ts = int(self.get_now().replace(second=0, microsecond=0).timestamp())
