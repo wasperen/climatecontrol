@@ -54,6 +54,12 @@ class CVEvent:
 		self._loop_through_set_point_map(set_point_map, lambda l: filter_first_occurrence(l, self.set_point))
 
 
+# borrowed from Mark Dickinson here:
+# https://stackoverflow.com/questions/13071384/python-ceil-a-datetime-to-next-quarter-of-an-hour/32657466#comment53190737_32657466
+def ceil_dt(dt, delta):
+	return dt + (datetime.datetime.min - dt) % delta
+
+
 class SmartCV(hass.Hass):
 
 	def initialize(self):
@@ -70,10 +76,16 @@ class SmartCV(hass.Hass):
 		for control in [c for z in self.zones for c in z['controls']]:
 			self.listen_event(self.update_boiler_target_cb, control, attribute='all')
 
-		time_zero = datetime.time(0, 0, 0)
-		self.run_every(self.update_schedule_cb, self.get_now(), 10 * 60)
-		self.run_minutely(self.update_states_cb, time_zero)
-		self.run_minutely(self.update_boiler_cb, time_zero)
+		# initialize schedule update
+		self.update_schedule_cb(None)
+		schedule_update_time = ceil_dt(self.get_now(), datetime.timedelta(minutes=10))
+		self.log("Next first scheduled calendar update will be at {}".format(schedule_update_time))
+		self.run_every(self.update_schedule_cb, schedule_update_time, 10 * 60)
+
+		# schedule state updates
+		self.run_minutely(self.update_states_cb, datetime.time(0, 0, 30))
+		self.run_minutely(self.update_boiler_target_cb, datetime.time(0, 0, 20))
+		self.run_minutely(self.update_boiler_cb, datetime.time(0, 0, 40))
 
 	def _get_controls(self, calendar_message):
 		for zone in self.zones:
@@ -223,7 +235,7 @@ class SmartCV(hass.Hass):
 						control, current_set_point, set_point, zone_name), level="INFO")
 					self.call_service('climate/set_temperature', entity_id=control, temperature=set_point)
 				else:
-					self.log("No need to chance control {} form set-point {}".format(control, set_point))
+					self.log("No need to chance control {} from set-point {}".format(control, set_point))
 
 				if current_state == 'off':
 					self.log("Switching on {} in zone {}".format(control, zone_name), level="INFO")
@@ -237,8 +249,7 @@ class SmartCV(hass.Hass):
 				else:
 					self.log("Control {} already off".format(control))
 
-	def update_boiler_target_cb(self, entity, attribute, old, new, kwargs):
-		self.log("Got a state change from {}, updating target boiler state now".format(entity), level="INFO")
+	def update_boiler_target_cb(self, kwargs):
 		reasons = {}
 		for (zone_name, control) in [(z["name"], c) for z in self.zones for c in z['controls']]:
 			if self.get_state(control) == 'off':
@@ -260,11 +271,17 @@ class SmartCV(hass.Hass):
 				)
 
 		if len(reasons) > 0:
-			self.log("Setting target boiler state to on, reasons: {}".format(reasons), level="INFO")
-			self.set_state(self.boiler_target, state='on', attributes=dict(trigger=entity, reasons=reasons))
+			if self.get_state(self.boiler_target) != 'on':
+				self.log("Setting target boiler state to on, reasons: {}".format(reasons), level="INFO")
+				self.set_state(self.boiler_target, state='on', attributes=dict(reasons=reasons))
+			else:
+				self.log("Boiler target state already 'on'")
 		else:
-			self.log("Setting target boiler state to off", level="INFO")
-			self.set_state(self.boiler_target, state='off', attributes=dict(trigger=entity))
+			if self.get_state(self.boiler_target) != 'off':
+				self.log("Setting target boiler state to off", level="INFO")
+				self.set_state(self.boiler_target, state='off', attributes={})
+			else:
+				self.log("Boiler target state already 'off'")
 
 	def update_boiler_cb(self, kwargs):
 		current_state = self.get_state(self.boiler)
@@ -281,4 +298,4 @@ class SmartCV(hass.Hass):
 			self.log("Switching boiler from {} to {}".format(current_state, target_state))
 			self.toggle(self.boiler)
 		else:
-			self.log("No need to change the boiler state", level="DEBUG")
+			self.log("No need to change the boiler state from '{}'".format(current_state), level="INFO")
