@@ -266,9 +266,10 @@ class SmartCV(hass.Hass):
 				continue
 
 			if current_temperature < target_temperature:
-				reasons[zone_name] = reasons.get(zone_name, []).append(
+				reasons[zone_name] = [
+					*reasons.get(zone_name, []),
 					{control: "{}<{}".format(current_temperature, target_temperature)}
-				)
+				]
 
 		if len(reasons) > 0:
 			if self.get_state(self.boiler_target) != 'on':
