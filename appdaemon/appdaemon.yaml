@@ -1,0 +1,7 @@
+appdaemon:
+  threads: 2
+  plugins:
+    HASS:
+      type: hass
+      ha_url: http://piggy:8123
+      token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxZTI0MTcyYWU0NDk0YmFlOTc4MDEzMmU5YzAwMDQwNyIsImlhdCI6MTU2NDE1MDY1NSwiZXhwIjoxODc5NTEwNjU1fQ.fWNQFIxWYX3XLXchk_oX5V5X0n1Tp_M_HMdmHXmJpA0
