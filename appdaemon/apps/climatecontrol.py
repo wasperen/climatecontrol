@@ -165,12 +165,12 @@ class SmartCV(hass.Hass):
     @staticmethod
     def _get_ts(dt, offset=0):
         dt_offset = dt + datetime.timedelta(minutes=offset)
-        return int(dt_offset.replace(second=0, minute=0).timestamp())
+        return int(dt_offset.replace(second=0, microsecond=0).timestamp())
 
-    def _get_lead_ts(self, zone, a_time):
+    def _get_lead_ts(self, control, a_time):
         return self._get_ts(a_time, HEAT_UP_LEAD_MINUTES)
 
-    def _get_lag_ts(self, zone, a_time):
+    def _get_lag_ts(self, control, a_time):
         return self._get_ts(a_time, HEAT_UP_LAG_MINUTES)
 
     def _get_oldest_to_keep_ts(self):
@@ -252,7 +252,7 @@ class SmartCV(hass.Hass):
                 self.log("Could not obtain current state of control {}".format(control), level="WARNING")
                 continue
 
-            lead_ts = self._get_lead_ts(zone_name, now)
+            lead_ts = self._get_lead_ts(control, now)
             lead_set_points = self._get_set_points_for_control(lead_ts, control)
             self._update_temperature(zone_name, control, lead_set_points)
 
