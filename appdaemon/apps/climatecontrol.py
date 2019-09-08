@@ -262,17 +262,19 @@ class SmartCV(hass.Hass):
                 self.log("Boiler state already 'off'")
 
     def manual_override_cb(self, entity, attribute, old, new, kwargs):
-        zone = kwargs.get('zone', '_unknown-zone_')
-        self.log("Got state update of {} in zone {} from {} to {}".format(entity, zone, old, new))
+        if 'zone' not in kwargs:
+            self.log("Manual override call without zone info", level="ERROR")
+            return
+        zone = kwargs['zone']
+
         if old == new:
-            self.log("Got identical temperature settings of {} for {}".format(new, entity))
+            self.log("Got identical temperature settings of {} for {}".format(new, entity), level="DEBUG")
             return
 
         now = self.get_now()
-        lead_ts = self._get_lead_ts(entity, now)
-        set_point = self.set_point_map.get_set_point(lead_ts, entity)
+        set_point = self.set_point_map.get_set_point(self._get_lead_ts(entity, now), entity)
         if set_point != new:
-            self.log("Now we set an override of {} for {} in {}".format(new, entity, zone))
+            end = now + datetime.timedelta(minutes=OVERRIDE_MINUTES)
             controls = self.zones[zone]
-            self.set_point_map.add_override(now, now+datetime.timedelta(minutes=OVERRIDE_MINUTES), controls, new)
-            self.log("Override from {} to {}".format(now, now+datetime.timedelta(minutes=OVERRIDE_MINUTES)))
+            self.set_point_map.add_override(now, end, controls, new)
+            self.log("Override to {} for controls {} in zone {} from {} to {}".format(new, controls, zone, now, end))
