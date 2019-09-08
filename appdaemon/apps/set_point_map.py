@@ -61,7 +61,7 @@ class SetPointMap:
             sp['scheduled'].remove(cv_event.set_point)
             return sp
 
-        self._loop_map(cv_event.event_start, cv_event.event_end, cv_event.contols, _remove_from_schedule)
+        self._loop_map(cv_event.event_start, cv_event.event_end, cv_event.controls, _remove_from_schedule)
 
     def add_override(self, start, end, controls, temperature):
         def _add_override(sp):
