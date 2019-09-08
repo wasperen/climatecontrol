@@ -7,6 +7,9 @@ class SetPointMap:
         self._set_point_map = {}
         self._step = datetime.timedelta(minutes=1)
 
+    def __str__(self):
+        return self._set_point_map.__str__()
+
     def get_set_points(self, ts, control=None):
         if ts not in self._set_point_map:
             return None
@@ -31,7 +34,7 @@ class SetPointMap:
         minute = start
         while minute < end:
             minute_ts = int(minute.replace(second=0, microsecond=0).timestamp())
-            set_points = self.get_set_points(minute_ts)
+            set_points = self.get_set_points(minute_ts) or {}
             for control in controls:
                 set_points[control] = f(set_points.get(control, {}))
             self._set_point_map[minute_ts] = set_points

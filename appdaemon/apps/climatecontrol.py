@@ -3,13 +3,14 @@ import datetime
 import requests
 import appdaemon.plugins.hass.hassapi as hass
 
-from appdaemon.apps.cv_event import CVEvent
-from appdaemon.apps.set_point_map import SetPointMap
+from cv_event import CVEvent
+from set_point_map import SetPointMap
 
 SET_POINT_PATTERN = re.compile('[^\\d]*([\\d]+|[\\d]+\\.[\\d]*)')
-HEAT_UP_LEAD_MINUTES = 30
-HEAT_UP_LAG_MINUTES = 15
+HEAT_UP_LEAD_MINUTES = 0
+HEAT_UP_LAG_MINUTES = 0
 MIN_TEMPERATURE_GAP = 0.5
+OVERRIDE_MINUTES = 30
 
 # borrowed from Mark Dickinson here:
 # https://stackoverflow.com/questions/13071384/python-ceil-a-datetime-to-next-quarter-of-an-hour/32657466#comment53190737_32657466
@@ -40,13 +41,13 @@ class SmartCV(hass.Hass):
         self.run_minutely(self.update_boiler_cb, datetime.time(0, 0, 40))
 
         # register manual override
-        for (zone_name, control) in [(z["name"], c) for z in self.zones for c in z['controls']]:
+        for (zone_name, control) in [(z, c) for z in self.zones for c in self.zones[z]]:
             self.listen_state(self.manual_override_cb, entity=control, attribute='temperature', zone=zone_name)
 
     def _get_controls(self, calendar_message):
         for zone in self.zones:
-            if calendar_message.startswith(zone['name']):
-                return zone['controls']
+            if calendar_message.startswith(zone):
+                return self.zones[zone]
         return None
 
     def _parse(self, calendar_message):
@@ -156,7 +157,7 @@ class SmartCV(hass.Hass):
         to_remove = [self.schedule[event_id] for event_id in self.schedule if event_id not in events]
         for to_remove_event in to_remove:
             self.log("Removing {}".format(to_remove_event))
-            to_remove_event.remove_from_set_point_map(self.set_point_map)
+            self.set_point_map.remove_cv_event(to_remove_event)
             self.schedule.pop(to_remove_event.event_id)
 
         # insert / update events from the calendar
@@ -174,13 +175,7 @@ class SmartCV(hass.Hass):
         self.log("Set Point Map: {}".format(self.set_point_map), level="DEBUG")
 
         # remove irrelevant minutes from set-point map
-        oldest_ts = self._get_oldest_to_keep_ts()
-        self.set_point_map.clear_all_before(oldest_ts)
-
-    # def _get_set_points_for_control(self, ts, control):
-    #     if ts not in self.set_point_map or control not in self.set_point_map.get(ts):
-    #         self.log("No set-point for control '{}' at time {}".format(control, ts), level="DEBUG")
-    #     return self.set_point_map.get(ts, {}).get(control, {})
+        self.set_point_map.clear_all_before(self._get_oldest_to_keep_ts())
 
     def _update_temperature(self, zone_name, control, set_point):
         if set_point is None:
@@ -201,7 +196,7 @@ class SmartCV(hass.Hass):
     def update_states_cb(self, kwargs):
         now = self.get_now()
 
-        for (zone_name, control) in [(z["name"], c) for z in self.zones for c in z['controls']]:
+        for (zone_name, control) in [(z, c) for z in self.zones for c in self.zones[z]]:
             current_state = self.get_state(control)
             if current_state is None:
                 self.log("Could not obtain current state of control {}".format(control), level="WARNING")
@@ -211,7 +206,7 @@ class SmartCV(hass.Hass):
             lead_set_point = self.set_point_map.get_set_point(lead_ts, control)
             self._update_temperature(zone_name, control, lead_set_point)
 
-            lag_ts = self._get_lag_ts(zone_name, now)
+            lag_ts = self._get_lag_ts(control, now)
             lag_set_point = self.set_point_map.get_set_point(lag_ts, control)
 
             if current_state == 'off':
@@ -229,7 +224,7 @@ class SmartCV(hass.Hass):
 
     def update_boiler_cb(self, kwargs):
         reasons_for_on = {}
-        for (zone_name, control) in [(z["name"], c) for z in self.zones for c in z['controls']
+        for (zone_name, control) in [(z, c) for z in self.zones for c in self.zones[z]
                                      if self.get_state(c) != 'off']:
 
             current_temperature = self.get_state(control, attribute="current_temperature")
@@ -267,12 +262,17 @@ class SmartCV(hass.Hass):
                 self.log("Boiler state already 'off'")
 
     def manual_override_cb(self, entity, attribute, old, new, kwargs):
-        self.log("Got state update of {} in zone {} from {} to {}".format(entity, kwargs['zone'], old, new))
+        zone = kwargs.get('zone', '_unknown-zone_')
+        self.log("Got state update of {} in zone {} from {} to {}".format(entity, zone, old, new))
         if old == new:
             self.log("Got identical temperature settings of {} for {}".format(new, entity))
             return
 
-        now_ts = self._get_ts(self.get_now())
-        set_point = self.set_point_map.get_set_point(now_ts, entity)
-        if set_point is None:
-            self.log("No current set point for {}".format(entity))
+        now = self.get_now()
+        lead_ts = self._get_lead_ts(entity, now)
+        set_point = self.set_point_map.get_set_point(lead_ts, entity)
+        if set_point != new:
+            self.log("Now we set an override of {} for {} in {}".format(new, entity, zone))
+            controls = self.zones[zone]
+            self.set_point_map.add_override(now, now+datetime.timedelta(minutes=OVERRIDE_MINUTES), controls, new)
+            self.log("Override from {} to {}".format(now, now+datetime.timedelta(minutes=OVERRIDE_MINUTES)))

@@ -5,28 +5,20 @@ cv_smart_controler:
   calendar: calendar.hass_calendar
   calendar_id: 110ljd2rva9cuqfg42rn31c6no@group.calendar.google.com
   zones:
-    - name: ellis
-      controls:
-        - climate.attic_heat
-    - name: voorzolder
-      controls:
-        - climate.loft_heat
-    - name: olivier
-      controls:
-        - climate.anteroom_heat
-    - name: badkamer
-      controls:
-        - climate.bathroom_heat
-    - name: slaapkamer
-      controls:
-        - climate.bedroom_left_heat
-        - climate.bedroom_right_heat
-    - name: benedenverdieping
-      controls:
-        - climate.livingroom_heat
-    - name: halletje
-      controls:
-        - climate.hall_heat
-    - name: toilet
-      controls:
-        - climate.toilet_heat
+    ellis:
+      - climate.attic_heat
+    voorzolder:
+      - climate.loft_heat
+    olivier:
+      - climate.anteroom_heat
+    badkamer:
+      - climate.bathroom_heat
+    slaapkamer:
+      - climate.bedroom_left_heat
+      - climate.bedroom_right_heat
+    benedenverdieping:
+      - climate.livingroom_heat
+    halletje:
+      - climate.hall_heat
+    toilet:
+      - climate.toilet_heat
