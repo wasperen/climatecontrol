@@ -9,7 +9,7 @@ from set_point_map import SetPointMap
 SET_POINT_PATTERN = re.compile('[^\\d]*([\\d]+|[\\d]+\\.[\\d]*)')
 HEAT_UP_LEAD_MINUTES = 0
 HEAT_UP_LAG_MINUTES = 0
-MIN_TEMPERATURE_GAP = 0.5
+MIN_TEMPERATURE_GAP = 1.0
 OVERRIDE_MINUTES = 30
 
 # borrowed from Mark Dickinson here:
