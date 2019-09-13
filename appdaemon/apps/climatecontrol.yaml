@@ -3,7 +3,6 @@ cv_smart_controler:
   class: SmartCV
   boiler: switch.boiler
   calendar: calendar.hass_calendar
-  calendar_id: 110ljd2rva9cuqfg42rn31c6no@group.calendar.google.com
   zones:
     ellis:
       - climate.attic_heat
