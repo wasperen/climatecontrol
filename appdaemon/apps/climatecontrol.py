@@ -164,7 +164,7 @@ class SmartCV(hass.Hass):
         for event_id, event in events.items():
             if event_id in self.schedule:
                 if event.updated != self.schedule[event_id].updated:
-                    self.schedule[event_id].remove_from_set_point_map(self.set_point_map)
+                    self.set_point_map.remove_cv_event(self.schedule[event_id])
                 else:
                     continue
             self.schedule[event_id] = event
