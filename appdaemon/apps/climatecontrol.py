@@ -1,4 +1,3 @@
-import re
 import datetime
 import requests
 import appdaemon.plugins.hass.hassapi as hass
@@ -6,11 +5,12 @@ import appdaemon.plugins.hass.hassapi as hass
 from cv_event import CVEvent
 from set_point_map import SetPointMap
 
-SET_POINT_PATTERN = re.compile('[^\\d]*([\\d]+|[\\d]+\\.[\\d]*)')
+VIEWPORT_HORIZON = datetime.timedelta(hours=16)
 HEAT_UP_LEAD_MINUTES = 0
 HEAT_UP_LAG_MINUTES = 0
 MIN_TEMPERATURE_GAP = 1.0
 OVERRIDE_MINUTES = 30
+
 
 # borrowed from Mark Dickinson here:
 # https://stackoverflow.com/questions/13071384/python-ceil-a-datetime-to-next-quarter-of-an-hour/32657466#comment53190737_32657466
@@ -44,22 +44,6 @@ class SmartCV(hass.Hass):
         for (zone_name, control) in [(z, c) for z in self.zones for c in self.zones[z]]:
             self.listen_state(self.manual_override_cb, entity=control, attribute='temperature', zone=zone_name)
 
-    def _get_controls(self, calendar_message):
-        for zone in self.zones:
-            if calendar_message.startswith(zone):
-                return self.zones[zone]
-        return None
-
-    def _parse(self, calendar_message):
-        controls = self._get_controls(calendar_message)
-
-        set_point = None
-        set_point_match = SET_POINT_PATTERN.match(calendar_message)
-        if set_point_match:
-            set_point = float(set_point_match.group(1))
-
-        return controls, set_point
-
     def _get_calendar_events(self, start, end):
         config = self.AD.get_plugin(self.namespace).config
         if "cert_path" in config:
@@ -81,46 +65,6 @@ class SmartCV(hass.Hass):
         r.raise_for_status()
         return r.json()
 
-    def parse_calendar_event(self, event):
-        if 'id' not in event:
-            self.log("Got calendar event without id: {}".format(event), level="WARNING")
-            return None
-        event_id = event['id']
-
-        if 'summary' not in event:
-            self.log("Get a calendar event without summary: {}".format(event), level="WARNING")
-            return None
-        calendar_message = event['summary']
-
-        controls, set_point = self._parse(calendar_message)
-        if controls is None:
-            self.log("Could not determine controls from calendar message '{}'".format(calendar_message), level="WARNING")
-            return None
-
-        if set_point is None:
-            self.log("Got calendar event for {} without set-point: {}".format(controls, event), level="WARNING")
-            return None
-        if set_point > 30 or set_point < 10:
-            self.log("Unrealistic set point at {}".format(set_point), level="WARNING")
-            return None
-
-        if 'start' not in event or 'dateTime' not in event['start']:
-            self.log("Got calendar event without start dateTime: {}".format(event), level="WARNING")
-            return None
-        event_start = datetime.datetime.fromisoformat(event["start"]["dateTime"])
-
-        if 'end' not in event or 'dateTime' not in event['end']:
-            self.log("Got calendar event without end dateTime: {}".format(event), level="WARNING")
-            return None
-        event_end = datetime.datetime.fromisoformat(event["end"]["dateTime"])
-
-        if 'updated' not in event and 'created' not in event:
-            self.log("Got calendar event without updated nor created timestamps {}".format(event), level="WARNING")
-            return None
-        updated = event["updated"] if 'updated' in event else event["created"]
-
-        return CVEvent(event_id, updated, controls, set_point, event_start, event_end)
-
     @staticmethod
     def _get_ts(dt, offset=0):
         dt_offset = dt + datetime.timedelta(minutes=offset)
@@ -136,9 +80,8 @@ class SmartCV(hass.Hass):
         return self._get_ts(self.get_now(), HEAT_UP_LAG_MINUTES)
 
     def update_schedule_cb(self, kwargs):
-        horizon = datetime.timedelta(hours=12)
-        start = self.get_now() - horizon
-        end = self.get_now() + horizon
+        start = self.get_now() - VIEWPORT_HORIZON
+        end = self.get_now() + VIEWPORT_HORIZON
 
         calendar_events = self._get_calendar_events(start, end)
         if calendar_events is None:
@@ -147,9 +90,12 @@ class SmartCV(hass.Hass):
 
         events = {}
         for calendar_event in calendar_events:
-            event = self.parse_calendar_event(calendar_event)
-            if event is not None:
+            try:
+                event = CVEvent.from_calendar_event(self.zones, calendar_event)
                 events[event.event_id] = event
+            except ValueError as error:
+                self.log(error, level='WARNING')
+                pass
 
         self.log("Calendar events: {}".format(events), level="DEBUG")
 
