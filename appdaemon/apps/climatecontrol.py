@@ -24,7 +24,6 @@ class SmartCV(hass.Hass):
         self.log("Smart CV initializing...")
 
         self.calendar = self.args['calendar']
-        self.calendar_id = self.args['calendar_id']
         self.boiler = self.args['boiler']
         self.zones = self.args['zones']
         self.schedule = {}
